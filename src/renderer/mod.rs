@@ -7,6 +7,7 @@ pub struct Vertex {
 
 pub struct Renderer {
     quad: ugli::VertexBuffer<Vertex>,
+    white_texture: ugli::Texture,
     program: ugli::Program,
 }
 
@@ -34,6 +35,7 @@ impl Renderer {
                 .shader_lib()
                 .compile(include_str!("program.glsl"))
                 .unwrap(),
+            white_texture: ugli::Texture::new_with(geng.ugli(), vec2(1, 1), |_| Color::WHITE),
         }
     }
     pub fn draw(
@@ -41,9 +43,10 @@ impl Renderer {
         framebuffer: &mut ugli::Framebuffer,
         camera: &Camera,
         matrix: Mat4<f32>,
-        texture: &ugli::Texture,
+        texture: Option<&ugli::Texture>,
         color: Color<f32>,
     ) {
+        let texture = texture.unwrap_or(&self.white_texture);
         let camera_uniforms = camera.uniforms(framebuffer.size().map(|x| x as f32));
         let uniforms = (
             camera_uniforms,

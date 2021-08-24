@@ -78,14 +78,23 @@ impl GameState {
         self.renderer.draw(
             framebuffer,
             &self.camera,
-            Mat4::translate(player.position.extend(0.0)),
-            &self.assets.player,
+            Mat4::translate(player.position.extend(0.0)) * Mat4::translate(vec3(-0.5, -0.5, 0.0)),
+            Some(&self.assets.player),
+            Color::WHITE,
+        );
+        self.renderer.draw(
+            framebuffer,
+            &self.camera,
+            Mat4::translate(player.position.extend(0.0) + vec3(0.0, 0.7, 0.0))
+                * Mat4::scale(vec3(1.5 * player.oxygen / Player::MAX_OXYGEN, 0.1, 1.0))
+                * Mat4::translate(vec3(-0.5, -0.5, 0.0)),
+            None,
             Color::WHITE,
         );
     }
 
     fn draw_impl(&mut self, framebuffer: &mut ugli::Framebuffer) {
-        ugli::clear(framebuffer, Some(Color::rgb(0.8, 0.8, 1.0)), None);
+        ugli::clear(framebuffer, Some(Color::rgb(0.05, 0.05, 0.2)), None);
         self.draw_player(framebuffer, &self.player);
         for player in self.model.players.values() {
             self.draw_player(framebuffer, player);
@@ -158,6 +167,9 @@ impl geng::State for GameState {
                 ServerMessage::Update(events) => {
                     for event in events {
                         match event {
+                            Event::PlayerDied(ref player) if player.id == self.player.id => {
+                                self.player = player.clone();
+                            }
                             _ => {}
                         }
                         self.model.handle(event);

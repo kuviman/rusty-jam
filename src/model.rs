@@ -28,6 +28,7 @@ impl IdGen {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Player {
     pub id: Id,
+    pub oxygen: f32,
     pub position: Vec2<f32>,
     pub velocity: Vec2<f32>,
     pub target_velocity: Vec2<f32>,
@@ -36,15 +37,30 @@ pub struct Player {
 impl Player {
     pub const SPEED: f32 = 2.0;
     pub const ACCELERATION: f32 = 2.0;
+    pub const MAX_OXYGEN: f32 = 10.0;
     pub fn new(id_gen: &mut IdGen) -> Self {
-        Self {
+        let mut player = Self {
             id: id_gen.gen(),
+            oxygen: 0.0,
             position: vec2(0.0, 0.0),
             velocity: vec2(0.0, 0.0),
             target_velocity: vec2(0.0, 0.0),
-        }
+        };
+        player.reset();
+        player
+    }
+    pub fn reset(&mut self) {
+        self.oxygen = Self::MAX_OXYGEN;
+        self.position = vec2(0.0, 0.0);
+        self.velocity = vec2(0.0, 0.0);
+        self.target_velocity = vec2(0.0, 0.0);
     }
     pub fn update(&mut self, delta_time: f32) {
+        if self.position.len() < 1.0 {
+            self.oxygen = (self.oxygen + delta_time * 10.0).min(Self::MAX_OXYGEN);
+        } else {
+            self.oxygen -= delta_time;
+        }
         self.velocity += (self.target_velocity * Self::SPEED - self.velocity)
             .clamp(Self::ACCELERATION * delta_time);
         self.position += self.velocity * delta_time;
@@ -108,7 +124,14 @@ impl Model {
     }
     #[must_use]
     pub fn tick(&mut self) -> Vec<Event> {
-        vec![]
+        let mut events = Vec::new();
+        for player in self.players.values_mut() {
+            if player.oxygen < 0.0 {
+                player.reset();
+                events.push(Event::PlayerDied(player.clone()));
+            }
+        }
+        events
     }
     pub fn handle(&mut self, event: Event) {
         self.handle_impl(event, None);
@@ -122,6 +145,7 @@ impl Model {
             Event::PlayerLeft(player_id) => {
                 self.players.remove(&player_id);
             }
+            Event::PlayerDied(_) => {}
         }
     }
 }
@@ -131,4 +155,5 @@ pub enum Event {
     PlayerJoined(Player),
     PlayerUpdated(Player),
     PlayerLeft(Id),
+    PlayerDied(Player),
 }
