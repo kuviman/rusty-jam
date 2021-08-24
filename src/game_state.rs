@@ -93,11 +93,26 @@ impl GameState {
         );
     }
 
+    fn draw_item(&self, framebuffer: &mut ugli::Framebuffer, item: &Item) {
+        self.renderer.draw(
+            framebuffer,
+            &self.camera,
+            Mat4::translate(item.position.extend(0.0))
+                * Mat4::scale_uniform(0.2)
+                * Mat4::translate(vec3(-0.5, -0.5, 0.0)),
+            Some(&self.assets.player),
+            Color::GRAY,
+        );
+    }
+
     fn draw_impl(&mut self, framebuffer: &mut ugli::Framebuffer) {
         ugli::clear(framebuffer, Some(Color::rgb(0.05, 0.05, 0.2)), None);
         self.draw_player(framebuffer, &self.player);
         for player in self.model.players.values() {
             self.draw_player(framebuffer, player);
+        }
+        for item in self.model.items.values() {
+            self.draw_item(framebuffer, item);
         }
     }
     fn update_player(&mut self, delta_time: f32) {
@@ -123,6 +138,14 @@ impl GameState {
             self.player.target_velocity.y -= 1.0;
         }
         self.player.update(delta_time);
+        for item in self.model.items.values() {
+            if (self.player.position - item.position).len() < 0.5 {
+                self.to_send.push(ClientMessage::Event(Event::PickUpItem {
+                    item_id: item.id,
+                    player_id: self.player.id,
+                }));
+            }
+        }
     }
 }
 
@@ -131,6 +154,7 @@ impl geng::State for GameState {
         self.draw_impl(framebuffer);
     }
     fn update(&mut self, delta_time: f64) {
+        self.camera.target_position = self.player.position;
         self.camera.update(delta_time as f32);
         let mut messages = Vec::new();
         match &mut self.connection {
@@ -198,7 +222,17 @@ impl geng::State for GameState {
             .or_default()
             .update(&self.player, delta_time);
     }
-    fn handle_event(&mut self, event: geng::Event) {}
+    fn handle_event(&mut self, event: geng::Event) {
+        match event {
+            geng::Event::Wheel { delta } => {
+                self.camera.target_fov = clamp(
+                    self.camera.target_fov * 2f32.powf(-delta as f32 * 0.01),
+                    2.0..=100.0,
+                );
+            }
+            _ => {}
+        }
+    }
     fn transition(&mut self) -> Option<geng::Transition> {
         self.transition.take()
     }

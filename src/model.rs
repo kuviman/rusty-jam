@@ -28,6 +28,7 @@ impl IdGen {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Player {
     pub id: Id,
+    pub metal: usize,
     pub oxygen: f32,
     pub position: Vec2<f32>,
     pub velocity: Vec2<f32>,
@@ -41,6 +42,7 @@ impl Player {
     pub fn new(id_gen: &mut IdGen) -> Self {
         let mut player = Self {
             id: id_gen.gen(),
+            metal: 0,
             oxygen: 0.0,
             position: vec2(0.0, 0.0),
             velocity: vec2(0.0, 0.0),
@@ -50,6 +52,7 @@ impl Player {
         player
     }
     pub fn reset(&mut self) {
+        self.metal = 0;
         self.oxygen = Self::MAX_OXYGEN;
         self.position = vec2(0.0, 0.0);
         self.velocity = vec2(0.0, 0.0);
@@ -67,20 +70,45 @@ impl Player {
     }
 }
 
+#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
+pub enum ItemType {
+    Metal,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Item {
+    pub id: Id,
+    pub position: Vec2<f32>,
+    pub typ: ItemType,
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Model {
     id_gen: IdGen,
     pub ticks_per_second: f64,
     pub players: HashMap<Id, Player>,
+    pub items: HashMap<Id, Item>,
 }
 
 impl Model {
     pub fn new() -> Self {
-        Self {
+        let mut model = Self {
             id_gen: IdGen::new(),
             ticks_per_second: 20.0,
             players: default(),
+            items: default(),
+        };
+        for _ in 0..100 {
+            const R: f32 = 30.0;
+            let mut rng = global_rng();
+            let item = Item {
+                id: model.id_gen.gen(),
+                position: vec2(rng.gen_range(-R..=R), rng.gen_range(-R..=R)),
+                typ: ItemType::Metal,
+            };
+            model.items.insert(item.id, item);
         }
+        model
     }
     #[must_use]
     fn spawn_player(&mut self) -> (Id, Vec<Event>) {
@@ -145,7 +173,17 @@ impl Model {
             Event::PlayerLeft(player_id) => {
                 self.players.remove(&player_id);
             }
-            Event::PlayerDied(_) => {}
+            Event::PickUpItem { item_id, player_id } => {
+                if let Some(item) = self.items.remove(&item_id) {
+                    if let Some(events) = events {
+                        events.push(Event::GiveItem {
+                            player_id,
+                            item: item.typ,
+                        });
+                    }
+                }
+            }
+            _ => {}
         }
     }
 }
@@ -156,4 +194,6 @@ pub enum Event {
     PlayerUpdated(Player),
     PlayerLeft(Id),
     PlayerDied(Player),
+    PickUpItem { item_id: Id, player_id: Id },
+    GiveItem { player_id: Id, item: ItemType },
 }
