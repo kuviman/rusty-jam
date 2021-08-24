@@ -109,7 +109,9 @@ impl GameState {
         ugli::clear(framebuffer, Some(Color::rgb(0.05, 0.05, 0.2)), None);
         self.draw_player(framebuffer, &self.player);
         for player in self.model.players.values() {
-            self.draw_player(framebuffer, player);
+            if player.id != self.player.id {
+                self.draw_player(framebuffer, player);
+            }
         }
         for item in self.model.items.values() {
             self.draw_item(framebuffer, item);
