@@ -18,7 +18,7 @@ impl Camera {
     }
     pub fn update(&mut self, delta_time: f32) {
         let delta_time = delta_time * 5.0;
-        self.fov += (self.target_fov - self.fov) * delta_time.min(1.0);
+        self.fov += (self.target_fov - self.fov) * (delta_time * 3.0).min(1.0);
         self.center += (self.target_position - self.center) * delta_time.min(1.0);
     }
     fn view_matrix(&self) -> Mat4<f32> {
